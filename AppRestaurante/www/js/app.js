@@ -305,33 +305,6 @@ angular.module('AppRestaurante', ['ionic'])
 	$scope.faturamentos = FaturamentoService.pedidosFaturados;
 })
 
-//funcionando
-// .controller("FecharPedidoController", function($scope, $stateParams, FaturamentoService, PedidoService)
-// {
-// 	$scope.pedidoId = $stateParams.pedidoId;
-// 	$scope.pedidoSelecionado = PedidoService.getPedido($scope.pedidoId).objetoPedido;
-
-// 	$scope.faturarPedido = function(idPedido) 
-// 	{
-// 		FaturamentoService.faturarPedido(PedidoService.fecharPedido(idPedido));
-// 		console.log(FaturamentoService.pedidosFaturados);
-// 	};
-
-// 	//calcula o valor total do pedido
-// 	$scope.calcularTotal = function(idPedido) 
-// 	{
-// 		var pedido = PedidoService.getPedido(idPedido).objetoPedido;
-// 		var valorTotal = 0;
-// 		//percorre os itens pedidos e vai somando o valor
-// 		pedido.itens.forEach(function(element) 
-// 		{
-// 			valorTotal += element.preco * element.quantidade;
-// 		})
-// 		return valorTotal;
-// 	}
-// })
-
-//teste
 .controller("FecharPedidoController", function($scope, $stateParams, FaturamentoService, PedidoService)
 {
 	$scope.tipoDeObjeto = $stateParams.tipo;
