@@ -1,0 +1,36 @@
+<ion-view view-title="AbrirConta" ng-controller="AbrirPedidoController">
+      
+<ion-header-bar class="bar-positive">
+	<a class="button icon ion-ios-arrow-back" ui-sref="main"></a>
+	<h1 class="title">Abrir Conta</h1>
+</ion-header-bar>
+
+<ion-content>
+	
+	<div class="list">
+		<label class="item item-input item-stacked-label">
+    		<span class="input-label">Nome do Cliente</span>
+			<input type="text" placeholder="Eg. João" ng-model="nomeCliente">
+		</label>
+
+		<label class="item item-input item-stacked-label">
+    		<span class="input-label">Número da Mesa</span>
+			<input type="text" placeholder="Eg. 1, 27, 99" ng-model="numeroMesa">
+		</label>
+
+		<div class="list list-inset">
+			
+			<a class="button button-block button-assertive" ng-if="!validarMesa(numeroMesa)">
+			Mesa Inválida ou Ocupada
+			</a>
+
+			<a class="button button-block button-balanced" ng-if="validarMesa(numeroMesa)" ui-sref="main" ng-click="abrirPedido(nomeCliente, numeroMesa)">
+			Abrir Conta
+			</a>
+
+		</div>
+	</div>
+
+</ion-content>
+
+</ion-view>

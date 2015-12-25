@@ -1,0 +1,58 @@
+<ion-view view-title="FecharConta" ng-controller="FecharPedidoController">
+      
+<ion-header-bar class="bar-positive">
+	<a class="button icon ion-ios-arrow-back" ng-if="tipoDeObjeto == 'pedido'" ui-sref="verPedidos({acao: 'fechar'})"></a>
+	<a class="button icon ion-ios-arrow-back" ng-if="tipoDeObjeto == 'faturamento'" ui-sref="listaFaturamentos"></a>
+
+	<h1 class="title" ng-if="tipoDeObjeto == 'pedido'">Conta</h1>
+	<h1 class="title" ng-if="tipoDeObjeto == 'faturamento'">Pedido Faturado</h1>
+</ion-header-bar>
+
+<ion-content>
+
+	<div class="list list">
+
+		<div class="item" ng-if="tipoDeObjeto == 'faturamento'">
+			<h2>ID Faturamento</h2> {{faturamentoSelecionado.id}}
+		</div>
+
+		<div class="item">
+			<h2>ID Pedido</h2> {{pedidoSelecionado.id}}
+		</div>
+
+		<div class="item">
+			<h2>Cliente</h2> {{pedidoSelecionado.nomeCliente}}
+		</div>
+
+		<div class="item">
+			<h2>Numero Mesa</h2> {{pedidoSelecionado.idMesa}}
+		</div>
+
+		<div class="item">
+			<h2>Garçom</h2> {{pedidoSelecionado.nomeGarcom}}
+		</div>
+
+		<div class="item">
+			<h2>Hora Início</h2> {{pedidoSelecionado.horaInicio}}
+		</div>
+
+		<div class="item" ng-if="tipoDeObjeto == 'faturamento'">
+			<h2>Hora Fim</h2> {{faturamentoSelecionado.horaFechamento}}
+		</div>		
+
+		<div class="item item-divider">Produtos Consumidos</div>
+
+		<div class="item" ng-repeat="item in pedidoSelecionado.itens">
+			<h2>{{item.nome}}</h2>
+			<span>{{item.quantidade}} x {{item.preco | currency: "R$"}} = {{item.preco * item.quantidade | currency: "R$"}}</span>
+		</div>
+
+		<div class="item item-divider">Total</div>
+
+		<div class="item">{{calcularTotal(pedidoSelecionado) | currency: "R$"}}</div>
+
+		<a class="item" ui-sref="main" ng-click="faturarPedido(pedidoSelecionado.id)" style="background-color:#ffcc00;">Fechar Pedido</a>
+	</div>
+
+</ion-content>
+</ion-view>

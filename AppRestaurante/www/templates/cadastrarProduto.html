@@ -1,0 +1,33 @@
+<ion-view view-title="CadastrarProduto">
+      
+<ion-header-bar class="bar-positive">
+	<a class="button icon ion-ios-arrow-back" ui-sref="main"></a>
+    <h1 class="title">Cadastrar Produto</h1>
+</ion-header-bar>
+  
+<ion-content>
+	
+	<div class="list">
+		<form name="form">
+		<label class="item item-input item-stacked-label">
+			<span class="input-label">Nome Produto</span>
+			<input type="text" name="nomeProduto" ng-model="nomeProduto" placeholder="Campo obrigatório" required>
+		</label>
+
+		<label class="item item-input item-stacked-label">
+			<span class="input-label">Valor Produto</span>
+			<input type="number" name="valorProduto" ng-model="valorProduto" min="0" placeholder="Campo obrigatório" required>
+		</label>
+		</form>
+
+		<div class="item" style="background-color: #EA312E;" ng-show="(form.nomeProduto.$error.required && form.nomeProduto.$dirty)">Nome Inválido</div>
+
+		<div class="item" style="background-color: #EA312E;" ng-show="form.valorProduto.$error.number || (form.valorProduto.$error.required && form.valorProduto.$dirty)">Valor inválido</div>
+	</div>
+	
+	<div class="list list-inset">
+		<a class="button button-block button-positive" ng-disabled="form.$invalid" ng-click="adicionarProduto(nomeProduto, valorProduto)" ui-sref="main">Cadastrar Produto</a>
+	</div>
+
+</ion-content>
+</ion-view>
