@@ -3,9 +3,11 @@
 // angular.module is a global place for creating, registering and retrieving Angular modules
 // 'starter' is the name of this angular module example (also set in a <body> attribute in index.html)
 // the 2nd parameter is an array of 'requires'
-angular.module('AppRestaurante', ['ionic'])
+var db;
 
-.run(function($ionicPlatform) {
+angular.module('AppRestaurante', ['ionic', 'ngCordova'])
+
+.run(function($ionicPlatform, $cordovaSQLite) {
   $ionicPlatform.ready(function() {
 	 if(window.cordova && window.cordova.plugins.Keyboard) {
 		// Hide the accessory bar by default (remove this to show the accessory bar above the keyboard
@@ -20,6 +22,44 @@ angular.module('AppRestaurante', ['ionic'])
 	 if(window.StatusBar) {
 		StatusBar.styleDefault();
 	 }
+
+	 //cria banco sqlite para mobile ou websql para teste browser
+	if(window.cordova) 
+	{
+      	//SQLite
+      	db = $cordovaSQLite.openDB("appRestaurante.db");
+    } 
+    else 
+    {
+    	//WEBSql
+    	db = window.openDatabase("appRestaurante.db", "1.0", "App Restaurante", -1);
+    }
+    //Criando as tabelas para a primeira inicialização
+    $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS usuarios (id integer primary key autoincrement, nome text not null unique, senha text not null)").then(function(res) {
+    	console.log("CREATE SUCESS");
+    	console.log(JSON.stringify(res));
+    }, function (err) {
+    	console.log("CREATE FAILURE");
+        console.error(JSON.stringify(err));
+    });
+
+    $cordovaSQLite.execute(db, "INSERT OR IGNORE INTO usuarios (nome, senha) VALUES (?,?)", ["jose", "123"]).then(function(res) {
+    	console.log("INSERT SUCCESS");
+    	console.log(JSON.stringify(res));
+    }, function (err) {
+    	console.log("INSERT FAILURE");
+        console.error(JSON.stringify(err));
+    });
+
+    $cordovaSQLite.execute(db, "SELECT * FROM usuarios").then(function(res) {
+    	console.log("SELECT SUCCESS");
+    	console.log(res.rows.length);
+    }, function (err) {
+    	console.log("SELECT FAILURE");
+        console.error(JSON.stringify(err));
+    });
+
+
   });
 })
 
@@ -77,7 +117,7 @@ angular.module('AppRestaurante', ['ionic'])
 	$urlRouterProvider.otherwise('/login/')
 })
 
-.service("LoginService", function() 
+.service("LoginService", function($cordovaSQLite, $q) 
 {
 	this.usuarios = [
 		{'id': 1,
@@ -87,18 +127,34 @@ angular.module('AppRestaurante', ['ionic'])
 
 	this.usuarioLogado = null;
 
+	// this.checarUsuario = function(nomeUsuario, senha) 
+	// {
+	// 	var objetoUsuario = null;
+	// 	this.usuarios.forEach(function(usuario)
+	// 	{
+	// 		if(usuario.nome == nomeUsuario && usuario.senha == senha)
+	// 		{
+	// 			objetoUsuario = usuario;
+	// 			return;
+	// 		}
+	// 	})
+	// 	return objetoUsuario;
+	// };
+
 	this.checarUsuario = function(nomeUsuario, senha) 
-	{
-		var objetoUsuario = null;
-		this.usuarios.forEach(function(usuario)
-		{
-			if(usuario.nome == nomeUsuario && usuario.senha == senha)
+	{	
+		var q = $q.defer();
+		$cordovaSQLite.execute(db, "SELECT * FROM usuarios WHERE nome = ? and senha = ?", [nomeUsuario, senha]).then(function(res) {
+			if(res.rows.length > 0)
 			{
-				objetoUsuario = usuario;
-				return;
+				q.resolve(res.rows.item(0));
+			}
+			else
+			{
+				q.reject(res);
 			}
 		})
-		return objetoUsuario;
+		return q.promise;
 	};
 })
 
@@ -225,7 +281,7 @@ angular.module('AppRestaurante', ['ionic'])
 	}
 })
 
-.controller("LoginController", function($scope, $state, $stateParams, LoginService) 
+.controller("LoginController", function($scope, $state, $stateParams, $cordovaSQLite, LoginService) 
 {
 	//caso seja um retry passa a mensagem ao usuário para que este corrija usuário e senha
 	if($stateParams.retry == 'true')
@@ -234,21 +290,49 @@ angular.module('AppRestaurante', ['ionic'])
 	}
 	
 	//funça que executa o login do usuário	
+	// $scope.logarUsuario = function(nomeUsuario, senha) 
+	// {
+	// 	var objetoUsuario = LoginService.checarUsuario(nomeUsuario, senha);
+	// 	console.log("LOGIN CONTROLLER");
+	// 	console.log(objetoUsuario);
+	// 	if(objetoUsuario != null)
+	// 	{
+	// 		//caso o login seja bem sucedido transfere o usuário para o menu principal do app
+	// 		LoginService.usuarioLogado = objetoUsuario;
+	// 		$state.go('main');
+	// 	}
+	// 	else
+	// 	{
+	// 		//caso não retorna à tela de login indicando um retry
+	// 		$state.go('login', {'retry' : true});
+	// 	}
+	// };
+
 	$scope.logarUsuario = function(nomeUsuario, senha) 
 	{
-		var objetoUsuario = LoginService.checarUsuario(nomeUsuario, senha)
-		if(objetoUsuario != null)
-		{
-			//caso o login seja bem sucedido transfere o usuário para o menu principal do app
-			LoginService.usuarioLogado = objetoUsuario;
-			$state.go('main');
-		}
-		else
-		{
-			//caso não retorna à tela de login indicando um retry
+		LoginService.checarUsuario(nomeUsuario, senha).then(function(res) {
+			LoginService.usuarioLogado = res;
+			console.log(res);
+			$state.go('main')
+		}, function(err) {
+			console.log(err);
 			$state.go('login', {'retry' : true});
-		}
-	}; 
+		})
+	};
+
+	// $scope.logarUsuario = function(nomeUsuario, senha) {
+	// 	return $cordovaSQLite.execute(db, "SELECT * FROM usuarios where nome = ?", [nomeUsuario]).then(function(res) {
+	// 		console.log(res.rows.length);
+	// 		if(res.rows.length > 0)
+	// 		{
+	// 			console.log(res.rows.item(0));
+	// 			instanciaUsuario = res.rows.item(0);
+	// 			$state.go('main');
+	// 			return instanciaUsuario;
+	// 			console.log(instanciaUsuario);
+	// 		}
+	// 	});
+	// }
 })
 
 //Controlador para a view estoque
