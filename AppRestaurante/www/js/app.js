@@ -35,31 +35,11 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
     	db = window.openDatabase("appRestaurante.db", "1.0", "App Restaurante", -1);
     }
     //Criando as tabelas para a primeira inicialização
-    $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS usuarios (id integer primary key autoincrement, nome text not null unique, senha text not null)").then(function(res) {
-    	console.log("CREATE SUCESS");
-    	console.log(JSON.stringify(res));
-    }, function (err) {
-    	console.log("CREATE FAILURE");
-        console.error(JSON.stringify(err));
-    });
-
-    $cordovaSQLite.execute(db, "INSERT OR IGNORE INTO usuarios (nome, senha) VALUES (?,?)", ["jose", "123"]).then(function(res) {
-    	console.log("INSERT SUCCESS");
-    	console.log(JSON.stringify(res));
-    }, function (err) {
-    	console.log("INSERT FAILURE");
-        console.error(JSON.stringify(err));
-    });
-
-    $cordovaSQLite.execute(db, "SELECT * FROM usuarios").then(function(res) {
-    	console.log("SELECT SUCCESS");
-    	console.log(res.rows.length);
-    }, function (err) {
-    	console.log("SELECT FAILURE");
-        console.error(JSON.stringify(err));
-    });
-
-
+    $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS usuarios (id integer primary key autoincrement, nome text not null unique, senha text not null)");
+    $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS produtos (id integer primary key autoincrement, nome text not null unique, preco real not null)");
+    $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO produtos (nome, preco) VALUES ("Coca", 10.99)');
+    $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO produtos (nome, preco) VALUES ("Pepsi", 7.99)');
+    $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO produtos (nome, preco) VALUES ("Dolly", 5.99)');
   });
 })
 
@@ -160,39 +140,68 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 
 //Serviço angular que implementa o controle de estoque.
 //Único para o aplicativo inteiro
-.service("ProdutoService", function () 
+.service("ProdutoService", function ($cordovaSQLite, $q) 
 {
-	this.idTracker = 4;
-	this.produtos = [
-		{'id': 1,
-			'nome': 'Coca',
-			'preco': 10.99},
-		{'id': 2,
-			'nome': 'Pepsi',
-			'preco': 7.99},
-	 	{'id': 3,
-	 		'nome': 'Dolly',
-			'preco': 5.99},
-	];
+	// this.produtos = [
+	// 	{'id': 1,
+	// 		'nome': 'Coca',
+	// 		'preco': 10.99},
+	// 	{'id': 2,
+	// 		'nome': 'Pepsi',
+	// 		'preco': 7.99},
+	//  	{'id': 3,
+	//  		'nome': 'Dolly',
+	// 		'preco': 5.99},
+	// ];
+
+	this.produtos = function() 
+	{
+		var q = $q.defer();
+		var arrayProdutos = [];
+		$cordovaSQLite.execute(db, "SELECT id, nome, preco FROM produtos").then(function(res) {
+			for (var i = 0; i < res.rows.length; i++) {
+				arrayProdutos.push(res.rows.item(i));
+			}
+			q.resolve(arrayProdutos);
+		})
+		return q.promise;
+	}
+
+	// this.adicionarProduto = function(nomeProduto, valorProduto) 
+	// {
+	// 	this.produtos.push({'id': this.idTracker, 'nome': nomeProduto, 'preco': valorProduto});
+	// 	this.idTracker++;
+	// };
 
 	this.adicionarProduto = function(nomeProduto, valorProduto) 
-	{
-		this.produtos.push({'id': this.idTracker, 'nome': nomeProduto, 'preco': valorProduto});
-		this.idTracker++;
+	{	
+		$cordovaSQLite.execute(db, "INSERT OR IGNORE INTO produtos (nome, preco) VALUES (?,?)", [nomeProduto, valorProduto]);
 	};
+
+	// this.getProduto = function(idProduto) 
+	// {
+	// 	var produtoBuscado = null;
+	// 	this.produtos.forEach(function(element) 
+	// 	{
+	// 		if(element.id == idProduto)
+	// 		{
+	// 			produtoBuscado = element;
+	// 			return;
+	// 		}
+	// 	})
+	// 	return produtoBuscado;
+	// };
 
 	this.getProduto = function(idProduto) 
 	{
-		var produtoBuscado = null;
-		this.produtos.forEach(function(element) 
+		var q = $q.defer();
+		var objetoPedido;
+		$cordovaSQLite.execute(db, "SELECT id, nome, preco FROM produtos WHERE id = ?", [idProduto]).then(function(res) 
 		{
-			if(element.id == idProduto)
-			{
-				produtoBuscado = element;
-				return;
-			}
+			objetoPedido = res.rows.item(0) ;
+			q.resolve(objetoPedido);
 		})
-		return produtoBuscado;
+		return q.promise;
 	};
 })
 
@@ -310,12 +319,15 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 
 	$scope.logarUsuario = function(nomeUsuario, senha) 
 	{
-		LoginService.checarUsuario(nomeUsuario, senha).then(function(res) {
+		LoginService.checarUsuario(nomeUsuario, senha).then(function(res) 
+		{
 			LoginService.usuarioLogado = res;
-			console.log(res);
+			console.log(LoginService.usuarioLogado);
 			$state.go('main')
-		}, function(err) {
-			console.log(err);
+		}, 
+		function(err) 
+		{
+			console.error(err);
 			$state.go('login', {'retry' : true});
 		})
 	};
@@ -338,7 +350,8 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 //Controlador para a view estoque
 .controller("EstoqueListController", function($scope, ProdutoService)
 {
-	$scope.listaDeProdutos = ProdutoService.produtos;
+	//$scope.listaDeProdutos = [];
+	ProdutoService.produtos().then(function(res) {$scope.listaDeProdutos = res;});
 })
 
 .controller("AbrirPedidoController", function($scope, LoginService, PedidoService, MesaService) 
@@ -427,42 +440,39 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 .controller("AdicionarItemController", function($scope, $stateParams, PedidoService, ProdutoService) 
 {
 	$scope.idPedido = $stateParams.idPedido;
-	$scope.listaDeProdutos = ProdutoService.produtos;
+	ProdutoService.produtos().then(function(res) {$scope.listaDeProdutos = res;});
+	
 	//adiciona o produto especificado à lista de itens do pedido especificado
 	$scope.adicionarItem = function(idProduto, idPedido) 
 	{
 		//clona o produto selecionado para ser inserido no array de itens do pedido
 		//ou para ser comparado com os itens já existentes
-		var produtoSelecionado = Object.create(ProdutoService.getProduto(idProduto));
-		var pedidoSelecionado = PedidoService.getPedido(idPedido).objetoPedido;
-
-		//procura se o produto já existe no array (pelo id) itens do pedido, 
-		// caso não exista ele é inserido com uma quantidade 1, caso já exista 
-		// uma entrada do produto, ele incrementa a variável quantidade dessa 
-		// entrada
-		var entradaItem = null;
-
-		//busca se o item selecionado já foi adicionado ao pedido
-		pedidoSelecionado.itens.forEach(function(produto)
+		ProdutoService.getProduto(idProduto).then(function(produtoSelecionado) 
 		{
-			if(produto.id == idProduto)
+			var pedidoSelecionado = PedidoService.getPedido(idPedido).objetoPedido;
+			var entradaItem = null;
+
+			pedidoSelecionado.itens.forEach(function(produto)
 			{
-				entradaItem = produto;
-				return;
-			}
-		});
+				if(produto.id == idProduto)
+				{
+					entradaItem = produto;
+					return;
+				}
+			});
 
-		//caso já exista, incremente a quantidade daquele produto no pedido
-		if (entradaItem != null) 
-		{
-			entradaItem.quantidade++;
-		}
-		//caso não, insira o produto selecionado com a quantidade 1 nos itens do pedido
-		else
-		{
-			produtoSelecionado['quantidade'] = 1;
-			pedidoSelecionado.itens.push(produtoSelecionado);
-		}
+			//caso já exista, incremente a quantidade daquele produto no pedido
+			if (entradaItem != null)
+			{
+				entradaItem.quantidade++;
+			}
+			//caso não, insira o produto selecionado com a quantidade 1 nos itens do pedido
+			else
+			{
+				produtoSelecionado['quantidade'] = 1;
+				pedidoSelecionado.itens.push(produtoSelecionado);
+			}
+		})
 	};
 })
 
