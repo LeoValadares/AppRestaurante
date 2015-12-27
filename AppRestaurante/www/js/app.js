@@ -37,9 +37,19 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
     //Criando as tabelas para a primeira inicialização
     $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS usuarios (id integer primary key autoincrement, nome text not null unique, senha text not null)");
     $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS produtos (id integer primary key autoincrement, nome text not null unique, preco real not null)");
+    $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS mesas (id integer primary key autoincrement, capacidade int)");
+    $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS pedidos (id integer primary key autoincrement, idMesa int references mesas(id), nomeGarcom text not null, nomeCliente text, horaInicio text not null, horaFechamento text, status text not null)");
+    $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS item_pedido (id integer primary key autoincrement, idPedido int references pedidos(id), idProduto int references produtos(id))");
+
+    $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO usuarios (nome, senha) VALUES ("teste", "123")');
+
     $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO produtos (nome, preco) VALUES ("Coca", 10.99)');
     $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO produtos (nome, preco) VALUES ("Pepsi", 7.99)');
     $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO produtos (nome, preco) VALUES ("Dolly", 5.99)');
+    
+    $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO mesas (id, capacidade) VALUES (1,2)');
+	$cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO mesas (id, capacidade) VALUES (2,4)');
+	$cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO mesas (id, capacidade) VALUES (3,8)');
   });
 })
 
@@ -99,27 +109,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 
 .service("LoginService", function($cordovaSQLite, $q) 
 {
-	this.usuarios = [
-		{'id': 1,
-			'nome': 'jose',
-			'senha' : '123'},
-	];
-
 	this.usuarioLogado = null;
-
-	// this.checarUsuario = function(nomeUsuario, senha) 
-	// {
-	// 	var objetoUsuario = null;
-	// 	this.usuarios.forEach(function(usuario)
-	// 	{
-	// 		if(usuario.nome == nomeUsuario && usuario.senha == senha)
-	// 		{
-	// 			objetoUsuario = usuario;
-	// 			return;
-	// 		}
-	// 	})
-	// 	return objetoUsuario;
-	// };
 
 	this.checarUsuario = function(nomeUsuario, senha) 
 	{	
@@ -138,22 +128,9 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 	};
 })
 
-//Serviço angular que implementa o controle de estoque.
-//Único para o aplicativo inteiro
+//Serviço angular que implementa o controle de produtos.
 .service("ProdutoService", function ($cordovaSQLite, $q) 
 {
-	// this.produtos = [
-	// 	{'id': 1,
-	// 		'nome': 'Coca',
-	// 		'preco': 10.99},
-	// 	{'id': 2,
-	// 		'nome': 'Pepsi',
-	// 		'preco': 7.99},
-	//  	{'id': 3,
-	//  		'nome': 'Dolly',
-	// 		'preco': 5.99},
-	// ];
-
 	this.produtos = function() 
 	{
 		var q = $q.defer();
@@ -167,30 +144,10 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 		return q.promise;
 	}
 
-	// this.adicionarProduto = function(nomeProduto, valorProduto) 
-	// {
-	// 	this.produtos.push({'id': this.idTracker, 'nome': nomeProduto, 'preco': valorProduto});
-	// 	this.idTracker++;
-	// };
-
 	this.adicionarProduto = function(nomeProduto, valorProduto) 
 	{	
 		$cordovaSQLite.execute(db, "INSERT OR IGNORE INTO produtos (nome, preco) VALUES (?,?)", [nomeProduto, valorProduto]);
 	};
-
-	// this.getProduto = function(idProduto) 
-	// {
-	// 	var produtoBuscado = null;
-	// 	this.produtos.forEach(function(element) 
-	// 	{
-	// 		if(element.id == idProduto)
-	// 		{
-	// 			produtoBuscado = element;
-	// 			return;
-	// 		}
-	// 	})
-	// 	return produtoBuscado;
-	// };
 
 	this.getProduto = function(idProduto) 
 	{
@@ -206,88 +163,136 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 })
 
 //Serviço encarregado de gerenciar as mesas
-.service("MesaService", function()
+.service("MesaService", function($cordovaSQLite, $q)
 {
-	this.mesas = [
-		{'id': 1,
-			'capacidade': 2},
-		{'id': 2,
-			'capacidade': 4},
-		{'id': 3,
-			'capacidade': 8}
-	];
+	//checa se a mesa está livre
+	this.checarMesaLivre = function(idMesa) 
+	{
+		var q = $q.defer();
+		//checa se o id da mesa existe
+		$cordovaSQLite.execute(db, "SELECT id FROM mesa WHERE id = ? AND id NOT IN (SELECT idMesa FROM pedidos WHERE status = 'aberto')", [idMesa]).then(function(res) {
+			if(res.rows.length > 0)
+			{
+				//retorna verdadeiro caso o id da mesa exista;
+				q.resolve(res.rows.item(0));
+			}
+			else
+			{
+				q.reject(res.rows.item(0));
+			}
+		});
+
+		return q.promise;
+	};
 })
 
 //Serviço encarregado de gerenciar pedidos
-.service("PedidoService", function() 
+.service("PedidoService", function($cordovaSQLite, $q) 
 {
-	this.idTracker = 1;
-	this.pedidos = [];
+	this.pedidos = function() 
+	{
+		var q = $q.defer();
+		var arrayPedidos = [];
+		$cordovaSQLite.execute(db, "SELECT id, nomeCliente, idMesa, nomeGarcom, horaInicio FROM pedidos WHERE status = 'aberto'").then(
+			function(res) 
+			{
+				for (var i = 0; i < res.rows.length; i++) {
+					arrayPedidos.push(res.rows.item(i));
+				}
+				q.resolve(arrayPedidos);
+			});
+		return q.promise;
+	};
 
 	this.abrirPedido = function(nomeCliente, idMesa, nomeGarcom) 
 	{
-		var novoPedido = {'id': this.idTracker, 'nomeCliente': nomeCliente, 'idMesa': idMesa, 'nomeGarcom': nomeGarcom, 'horaInicio': (new Date).toUTCString(), 'itens': []};
-		this.pedidos.push(novoPedido);
-		this.idTracker++;
-	};
-
-	this.getPedido = function getPedido(id) 
-	{
-		var objetoPedido = null;
-		var indexObjeto = -1;
-		this.pedidos.forEach(function(element, index) 
-		{
-			if(element.id == id)
+		$cordovaSQLite.execute(db, "INSERT OR IGNORE INTO pedidos (nomeCliente, idMesa, nomeGarcom, horaInicio, status) VALUES (?,?,?,?,?)", 
+			[nomeCliente, idMesa, nomeGarcom, (new Date).toUTCString(), 'aberto']).then(
+			function(res)
 			{
-				objetoPedido = element;
-				indexObjeto = index
-				return;
-			}
-		})
-		return {'index': indexObjeto, 'objetoPedido': objetoPedido};
+				console.log("INSERT RES");
+				console.log(res);
+			},
+			function(err) 
+			{
+				console.log("INSERT ERR");
+				console.log(err);
+			});
 	};
 
-	//procura pedido pelo id da mesa, remove ele do array pedidos e retorna o objeto correspondente ao pedido
+	this.getPedido = function(pedidoId) 
+	{
+		var q = $q.defer();
+		$cordovaSQLite.execute(db, "SELECT id, nomeCliente, idMesa, nomeGarcom, horaInicio FROM pedidos WHERE id = ?", [pedidoId]).then(
+			function(res) 
+			{
+				q.resolve(res.rows.item(0));	
+			},
+			function(err) 
+			{
+				q.reject(err);
+			})
+		return q.promise;
+	};
+
 	this.fecharPedido = function(idPedido) 
 	{
-		var objetoPedido = this.getPedido(idPedido);
-		if(objetoPedido.objetoPedido != null)
-		{
-			// objetoPedido = this.pedidos[idPedido];
-			this.pedidos.splice(objetoPedido.index, 1);
-			console.log(objetoPedido);
-			return objetoPedido.objetoPedido;
-		}
+		$cordovaSQLite.execute(db, "UPDATE pedidos SET status = 'fechado', horaFechamento = ? WHERE id = ?", [(new Date).toUTCString(), idPedido]).then(
+			function(res) {console.log(res)}, function(err) {
+				console.log(err)
+			});
+	};
+})
+
+.service("ItemPedidoService", function($cordovaSQLite, $q) 
+{
+	this.adicioarItemPedido = function(idProduto, idPedido) 
+	{
+		$cordovaSQLite.execute(db, "INSERT INTO item_pedido (idProduto, idPedido) VALUES (?,?)", [idProduto, idPedido]);
+	};
+
+	this.getItensPedido = function(idPedido) 
+	{
+		var q = $q.defer();
+		var arrayItensPedido = [];
+		$cordovaSQLite.execute(db, "select item_pedido.id as item_pedido_Id, idPedido, idProduto, nome, preco, count(idProduto) as quantidade" + 
+			"from item_pedido inner join produtos on item_pedido.idProduto = produtos.id where idPedido = ? group by idProduto", [idPedido]).then(
+			function(res) 
+			{
+				for (var i = 0; i < res.rows.length; i++) {
+					arrayItensPedido.push(res.rows.item(i));
+				}
+				q.resolve(arrayItensPedido);
+			}, function(err) {console.error(err)});
+		return q.promise;
 	};
 })
 
 //Serviço encarregado de gerenciar pedidos
-.service("FaturamentoService", function() 
+.service("FaturamentoService", function($cordovaSQLite, $q) 
 {
-	this.idTracker = 1;
-	this.pedidosFaturados = [
-	];
+	this.pedidosFaturados = function() 
+	{
+		var q = $q.defer();
+		var arrayFaturamentos = [];
+		$cordovaSQLite.execute(db, "SELECT id, nomeCliente, nomeGarcom, horaFechamento FROM pedidos where status = 'fechado'").then(function(res) {
+			for (var i = 0; i < res.rows.length; i++) {
+				arrayFaturamentos.push(res.rows.item(i));
+			};
+			q.resolve(arrayFaturamentos);
+		})
+		return q.promise;
+	};
 
 	this.getFaturamento = function(faturamentoId) 
 	{
-		var faturamentoSelecionado = null;
-		this.pedidosFaturados.forEach(function(faturamento) {
-			if (faturamentoId == faturamento.id) 
-			{
-				faturamentoSelecionado = faturamento;
-				return;
-			};
-		})
-		return faturamentoSelecionado;
+		var q = $q.defer();
+		$cordovaSQLite.execute(db, "SELECT id, nomeCliente, nomeGarcom, idMesa, horaInicio, horaFechamento FROM pedidos where status = 'fechado' and id = ?", [faturamentoId]).then(
+			function(res) {
+				q.resolve(res.rows.item(0));
+			})
+		return q.promise;
 	};
-
-	this.faturarPedido = function(pedido) 
-	{
-		var pedidoFaturado = {'id': this.idTracker, 'horaFechamento': (new Date).toUTCString(), 'pedido': pedido};
-		this.pedidosFaturados.push(pedidoFaturado);
-		this.idTracker++;
-		console.log(pedidoFaturado);
-	}
 })
 
 .controller("LoginController", function($scope, $state, $stateParams, $cordovaSQLite, LoginService) 
@@ -297,25 +302,6 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 	{
 		$scope.retryMessage = "Dados de login inválidos, tente novamente.";
 	}
-	
-	//funça que executa o login do usuário	
-	// $scope.logarUsuario = function(nomeUsuario, senha) 
-	// {
-	// 	var objetoUsuario = LoginService.checarUsuario(nomeUsuario, senha);
-	// 	console.log("LOGIN CONTROLLER");
-	// 	console.log(objetoUsuario);
-	// 	if(objetoUsuario != null)
-	// 	{
-	// 		//caso o login seja bem sucedido transfere o usuário para o menu principal do app
-	// 		LoginService.usuarioLogado = objetoUsuario;
-	// 		$state.go('main');
-	// 	}
-	// 	else
-	// 	{
-	// 		//caso não retorna à tela de login indicando um retry
-	// 		$state.go('login', {'retry' : true});
-	// 	}
-	// };
 
 	$scope.logarUsuario = function(nomeUsuario, senha) 
 	{
@@ -331,113 +317,134 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 			$state.go('login', {'retry' : true});
 		})
 	};
-
-	// $scope.logarUsuario = function(nomeUsuario, senha) {
-	// 	return $cordovaSQLite.execute(db, "SELECT * FROM usuarios where nome = ?", [nomeUsuario]).then(function(res) {
-	// 		console.log(res.rows.length);
-	// 		if(res.rows.length > 0)
-	// 		{
-	// 			console.log(res.rows.item(0));
-	// 			instanciaUsuario = res.rows.item(0);
-	// 			$state.go('main');
-	// 			return instanciaUsuario;
-	// 			console.log(instanciaUsuario);
-	// 		}
-	// 	});
-	// }
 })
 
 //Controlador para a view estoque
-.controller("EstoqueListController", function($scope, ProdutoService)
+.controller("EstoqueListController", function($scope, ProdutoService, MesaService)
 {
-	//$scope.listaDeProdutos = [];
-	ProdutoService.produtos().then(function(res) {$scope.listaDeProdutos = res;});
+	ProdutoService.produtos().then(function(listaDeProdutos) {
+		$scope.listaDeProdutos = listaDeProdutos;});
 })
 
 .controller("AbrirPedidoController", function($scope, LoginService, PedidoService, MesaService) 
 {
+	$scope.mesaValida = false;
+		
+	MesaService.checarMesaLivre($scope.numeroMesa).then(function(res) 
+	{
+		$scope.mesaValida = true;
+	})
+
 	$scope.abrirPedido = function(nomeCliente, idMesa) 
 	{
 		console.log(LoginService);
-		PedidoService.abrirPedido(nomeCliente, idMesa, LoginService.usuarioLogado.nome);
+		MesaService.checarMesaLivre(idMesa).then(function(res) 
+		{
+			PedidoService.abrirPedido(nomeCliente, idMesa, LoginService.usuarioLogado.nome);
+			$state.go('main');
+		},
+		function(err) 
+		{
+			alert(JSON.stringify(err));
+		});
 	};
 
 	//função que valida se a mesa está livre
 	//vamos com calma
+	// $scope.validarMesa = function(idMesa) 
+	// {
+	// 	//percorre o array de mesas verificando se o idMesa passado corresponde a um numero de mesa
+	// 	for (var i = 0; i < MesaService.mesas.length; i++) 
+	// 	{
+	// 		//id existe, blz, vamos verificar agora se nenhum pedido está associado a mesa idMesa
+	// 		if(idMesa == MesaService.mesas[i].id)
+	// 		{
+	// 			//percorre o vetor pedidos verificando se nenhum pedido está associado aquela mesa
+	// 			for (var j = PedidoService.pedidos.length - 1; j >= 0; j--) 
+	// 			{
+	// 				if(idMesa == PedidoService.pedidos[j].idMesa)
+	// 				{
+	// 					//retorna falso já que o id da mesa já está associado com um pedido
+	// 					return false;
+	// 				}
+	// 			}
+	// 			//ele percorreu os pedidos e n achou nenhum pedido na mesa informada retorna verdadeiro, é válido associar uma conta aquela mesa
+	// 			return true;
+	// 		}
+	// 	}
+	// 	//se o programa caiu aqui é pq n existe nenhuma mesa com o id indicado
+	// 	return false;
+	// };
+
 	$scope.validarMesa = function(idMesa) 
 	{
-		//percorre o array de mesas verificando se o idMesa passado corresponde a um numero de mesa
-		for (var i = 0; i < MesaService.mesas.length; i++) 
-		{
-			//id existe, blz, vamos verificar agora se nenhum pedido está associado a mesa idMesa
-			if(idMesa == MesaService.mesas[i].id)
-			{
-				//percorre o vetor pedidos verificando se nenhum pedido está associado aquela mesa
-				for (var j = PedidoService.pedidos.length - 1; j >= 0; j--) 
-				{
-					if(idMesa == PedidoService.pedidos[j].idMesa)
-					{
-						//retorna falso já que o id da mesa já está associado com um pedido
-						return false;
-					}
-				}
-				//ele percorreu os pedidos e n achou nenhum pedido na mesa informada retorna verdadeiro, é válido associar uma conta aquela mesa
-				return true;
-			}
-		}
-		//se o programa caiu aqui é pq n existe nenhuma mesa com o id indicado
-		return false;
+		
 	};
 })
 
 .controller("VerPedidosController", function($scope, $stateParams, PedidoService)
 {
 	$scope.acao = $stateParams.acao;
-	console.log($scope.acao);
-	$scope.listaDePedidos = PedidoService.pedidos;
+	PedidoService.pedidos().then(function(res) {
+		$scope.listaDePedidos = res;
+	});
 })
 
 .controller("ListarFaturamentosController", function($scope, FaturamentoService) 
 {
-	$scope.faturamentos = FaturamentoService.pedidosFaturados;
+	FaturamentoService.pedidosFaturados().then(function(pedidosFaturados) {
+		$scope.faturamentos = pedidosFaturados;
+	});
 })
 
-.controller("FecharPedidoController", function($scope, $stateParams, FaturamentoService, PedidoService)
+.controller("FecharPedidoController", function($scope, $stateParams, FaturamentoService, PedidoService, ItemPedidoService)
 {
 	$scope.tipoDeObjeto = $stateParams.tipo;
 	$scope.objetoId = $stateParams.objetoId;
+
+	//caso o item selecionado seja um pedido aberto, busque-o no em PedidoService
 	if($scope.tipoDeObjeto == 'pedido')
 	{
-		$scope.pedidoSelecionado = PedidoService.getPedido($scope.objetoId).objetoPedido;
+		PedidoService.getPedido($scope.objetoId).then(function(res) {
+			$scope.pedidoSelecionado = res;
+		});
 	}
+	//caso o item selecionado seja um pedido faturado, busque-o em FaturamentoService
 	else if ($scope.tipoDeObjeto == 'faturamento')
 	{
-		$scope.objetoFaturamento = FaturamentoService.getFaturamento($scope.objetoId);
-
-		$scope.faturamentoSelecionado = $scope.objetoFaturamento;
-		$scope.pedidoSelecionado = 	$scope.objetoFaturamento.pedido;
+		FaturamentoService.getFaturamento($scope.objetoId).then(function(res) {
+			$scope.pedidoSelecionado = res;
+		});
 	}
 
-	$scope.faturarPedido = function(idPedido) 
+	//Carrega os itens associados ao pedido pelo serviço ItemPedidoService
+	ItemPedidoService.getItensPedido($scope.objetoId).then(function(itensPedido) {
+		console.log(itensPedido);
+		$scope.pedidoSelecionado.itens = itensPedido;
+	});
+
+	$scope.fecharPedido = function(idPedido) 
 	{
-		FaturamentoService.faturarPedido(PedidoService.fecharPedido(idPedido));
-		console.log(FaturamentoService.pedidosFaturados);
+		PedidoService.fecharPedido(idPedido);
 	};
 
-	//calcula o valor total do pedido
-	$scope.calcularTotal = function(pedido) 
+	//recebe um array de produtos e calcula o valor total
+	$scope.calcularTotal = function(itensPedido) 
 	{
 		var valorTotal = 0;
-		//percorre os itens pedidos e vai somando o valor
-		pedido.itens.forEach(function(element) 
+		if(itensPedido != undefined || itensPedido != null)
 		{
-			valorTotal += element.preco * element.quantidade;
-		})
+			//soma os totais parcias do valor dos itens
+			itensPedido.forEach(function(element)
+			{
+				valorTotal += element.preco * element.quantidade;
+			});
+		}
 		return valorTotal;
 	}
 })
 
-.controller("AdicionarItemController", function($scope, $stateParams, PedidoService, ProdutoService) 
+.controller("AdicionarItemController", function($scope, $stateParams, ProdutoService, ItemPedidoService) 
 {
 	$scope.idPedido = $stateParams.idPedido;
 	ProdutoService.produtos().then(function(res) {$scope.listaDeProdutos = res;});
@@ -445,34 +452,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 	//adiciona o produto especificado à lista de itens do pedido especificado
 	$scope.adicionarItem = function(idProduto, idPedido) 
 	{
-		//clona o produto selecionado para ser inserido no array de itens do pedido
-		//ou para ser comparado com os itens já existentes
-		ProdutoService.getProduto(idProduto).then(function(produtoSelecionado) 
-		{
-			var pedidoSelecionado = PedidoService.getPedido(idPedido).objetoPedido;
-			var entradaItem = null;
-
-			pedidoSelecionado.itens.forEach(function(produto)
-			{
-				if(produto.id == idProduto)
-				{
-					entradaItem = produto;
-					return;
-				}
-			});
-
-			//caso já exista, incremente a quantidade daquele produto no pedido
-			if (entradaItem != null)
-			{
-				entradaItem.quantidade++;
-			}
-			//caso não, insira o produto selecionado com a quantidade 1 nos itens do pedido
-			else
-			{
-				produtoSelecionado['quantidade'] = 1;
-				pedidoSelecionado.itens.push(produtoSelecionado);
-			}
-		})
+		ItemPedidoService.adicioarItemPedido(idProduto, idPedido);
 	};
 })
 
@@ -483,9 +463,3 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 		ProdutoService.adicionarProduto(nomeProduto, valorProduto);
 	};
 });
-
-
-
-
-
-
