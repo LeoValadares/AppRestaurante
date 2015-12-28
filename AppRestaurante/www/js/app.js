@@ -170,7 +170,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 	{
 		var q = $q.defer();
 		//checa se o id da mesa existe
-		$cordovaSQLite.execute(db, "SELECT id FROM mesa WHERE id = ? AND id NOT IN (SELECT idMesa FROM pedidos WHERE status = 'aberto')", [idMesa]).then(function(res) {
+		$cordovaSQLite.execute(db, "SELECT id FROM mesas WHERE id = ? AND id NOT IN (SELECT idMesa FROM pedidos WHERE status = 'aberto')", [idMesa]).then(function(res) {
 			if(res.rows.length > 0)
 			{
 				//retorna verdadeiro caso o id da mesa exista;
@@ -178,9 +178,9 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 			}
 			else
 			{
-				q.reject(res.rows.item(0));
+				q.reject();
 			}
-		});
+		}, function(err) {console.error(err)});
 
 		return q.promise;
 	};
@@ -198,7 +198,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 			{
 				for (var i = 0; i < res.rows.length; i++) {
 					arrayPedidos.push(res.rows.item(i));
-				}
+				};
 				q.resolve(arrayPedidos);
 			});
 		return q.promise;
@@ -255,15 +255,14 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 	{
 		var q = $q.defer();
 		var arrayItensPedido = [];
-		$cordovaSQLite.execute(db, "select item_pedido.id as item_pedido_Id, idPedido, idProduto, nome, preco, count(idProduto) as quantidade" + 
-			"from item_pedido inner join produtos on item_pedido.idProduto = produtos.id where idPedido = ? group by idProduto", [idPedido]).then(
+		$cordovaSQLite.execute(db, ("select item_pedido.id as item_pedido_Id, idPedido, idProduto, nome, preco, count(idProduto) as quantidade from item_pedido inner join produtos on item_pedido.idProduto = produtos.id where idPedido = ? group by idProduto"), [idPedido]).then(
 			function(res) 
 			{
 				for (var i = 0; i < res.rows.length; i++) {
 					arrayItensPedido.push(res.rows.item(i));
 				}
 				q.resolve(arrayItensPedido);
-			}, function(err) {console.error(err)});
+			}, function(err) {console.error(err);});
 		return q.promise;
 	};
 })
@@ -326,7 +325,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 		$scope.listaDeProdutos = listaDeProdutos;});
 })
 
-.controller("AbrirPedidoController", function($scope, LoginService, PedidoService, MesaService) 
+.controller("AbrirPedidoController", function($scope, $state, LoginService, PedidoService, MesaService) 
 {
 	$scope.mesaValida = false;
 		
@@ -337,57 +336,27 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 
 	$scope.abrirPedido = function(nomeCliente, idMesa) 
 	{
-		console.log(LoginService);
+		console.log(nomeCliente + " " + idMesa);
 		MesaService.checarMesaLivre(idMesa).then(function(res) 
 		{
+			console.log(res);
 			PedidoService.abrirPedido(nomeCliente, idMesa, LoginService.usuarioLogado.nome);
 			$state.go('main');
 		},
 		function(err) 
 		{
-			alert(JSON.stringify(err));
+			alert("Mesa inválida ou ocupada.");
 		});
-	};
-
-	//função que valida se a mesa está livre
-	//vamos com calma
-	// $scope.validarMesa = function(idMesa) 
-	// {
-	// 	//percorre o array de mesas verificando se o idMesa passado corresponde a um numero de mesa
-	// 	for (var i = 0; i < MesaService.mesas.length; i++) 
-	// 	{
-	// 		//id existe, blz, vamos verificar agora se nenhum pedido está associado a mesa idMesa
-	// 		if(idMesa == MesaService.mesas[i].id)
-	// 		{
-	// 			//percorre o vetor pedidos verificando se nenhum pedido está associado aquela mesa
-	// 			for (var j = PedidoService.pedidos.length - 1; j >= 0; j--) 
-	// 			{
-	// 				if(idMesa == PedidoService.pedidos[j].idMesa)
-	// 				{
-	// 					//retorna falso já que o id da mesa já está associado com um pedido
-	// 					return false;
-	// 				}
-	// 			}
-	// 			//ele percorreu os pedidos e n achou nenhum pedido na mesa informada retorna verdadeiro, é válido associar uma conta aquela mesa
-	// 			return true;
-	// 		}
-	// 	}
-	// 	//se o programa caiu aqui é pq n existe nenhuma mesa com o id indicado
-	// 	return false;
-	// };
-
-	$scope.validarMesa = function(idMesa) 
-	{
-		
 	};
 })
 
 .controller("VerPedidosController", function($scope, $stateParams, PedidoService)
 {
-	$scope.acao = $stateParams.acao;
 	PedidoService.pedidos().then(function(res) {
 		$scope.listaDePedidos = res;
 	});
+	$scope.acao = $stateParams.acao;
+
 })
 
 .controller("ListarFaturamentosController", function($scope, FaturamentoService) 

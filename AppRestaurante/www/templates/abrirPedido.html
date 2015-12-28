@@ -19,12 +19,8 @@
 		</label>
 
 		<div class="list list-inset">
-			
-			<a class="button button-block button-assertive" ng-if="!mesaValida">
-			Mesa Inválida ou Ocupada
-			</a>
 
-			<a class="button button-block button-balanced" ng-if="mesaValida" ui-sref="main" ng-click="abrirPedido(nomeCliente, numeroMesa)">
+			<a class="button button-block button-balanced" ng-click="abrirPedido(nomeCliente, numeroMesa)">
 			Abrir Conta
 			</a>
 
