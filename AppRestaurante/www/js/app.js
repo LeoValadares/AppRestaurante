@@ -3,10 +3,11 @@
 // angular.module is a global place for creating, registering and retrieving Angular modules
 // 'starter' is the name of this angular module example (also set in a <body> attribute in index.html)
 // the 2nd parameter is an array of 'requires'
+
+//variável que guardará o objeto que interfaceia com o banco de dados
 var db;
 
 angular.module('AppRestaurante', ['ionic', 'ngCordova'])
-
 .run(function($ionicPlatform, $cordovaSQLite) {
   $ionicPlatform.ready(function() {
 	 if(window.cordova && window.cordova.plugins.Keyboard) {
@@ -34,6 +35,29 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
     	//WEBSql
     	db = window.openDatabase("appRestaurante.db", "1.0", "App Restaurante", -1);
     }
+
+    //Tabelas usadas no aplicativo
+    
+    //                  -------------------------------------------------------------------------------------------
+    //Tabela usuarios: | id - pk - auto increment | nome - text - not null - unique key | senha - text - not null |
+    //                 --------------------------------------------------------------------------------------------
+
+    //                  -------------------------------------------------------------------------------------------
+    //Tabela produtos: | id - pk - auto increment | nome - text - not null - unique key | preco - real - not null |
+    //                 --------------------------------------------------------------------------------------------
+
+    //				 ----------------------------------------------
+    //Tabela mesas: | id - pk - auto increment | capacidade - int |
+    //				-----------------------------------------------
+
+    //				   -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    //Tabela pedidos: | id - pk - auto increment | idMesa - fk: mesas.id | nomeGarcom - text - not null | nomeCliente - text | horaInicio - text - not null | horaFechamento - text | status - text - not null |
+    //				  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    //                     -------------------------------------------------------------------------------------
+    //Tabela item_pedido: | id - pk - auto increment | idPedido - fk: pedidos.id | idProduto - fk: produtos.id |
+    //                    --------------------------------------------------------------------------------------
+
     //Criando as tabelas para a primeira inicialização
     $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS usuarios (id integer primary key autoincrement, nome text not null unique, senha text not null)");
     $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS produtos (id integer primary key autoincrement, nome text not null unique, preco real not null)");
@@ -41,12 +65,15 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
     $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS pedidos (id integer primary key autoincrement, idMesa int references mesas(id), nomeGarcom text not null, nomeCliente text, horaInicio text not null, horaFechamento text, status text not null)");
     $cordovaSQLite.execute(db, "CREATE TABLE IF NOT EXISTS item_pedido (id integer primary key autoincrement, idPedido int references pedidos(id), idProduto int references produtos(id))");
 
+    //cria usuário na primeira execução
     $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO usuarios (nome, senha) VALUES ("teste", "123")');
 
+    //Cria alguns produtos na primeira execução
     $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO produtos (nome, preco) VALUES ("Coca", 10.99)');
     $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO produtos (nome, preco) VALUES ("Pepsi", 7.99)');
     $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO produtos (nome, preco) VALUES ("Dolly", 5.99)');
     
+    //e algumas mesas
     $cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO mesas (id, capacidade) VALUES (1,2)');
 	$cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO mesas (id, capacidade) VALUES (2,4)');
 	$cordovaSQLite.execute(db, 'INSERT OR IGNORE INTO mesas (id, capacidade) VALUES (3,8)');
@@ -55,12 +82,11 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 
 .config(function($stateProvider, $urlRouterProvider)
 {
+	//configura as rotas que serão usadas pelo aplicativo
   	$stateProvider
-
-	  	.state('login', {
+		.state('login', {
 			url: '/login/:retry?',
 			templateUrl: 'templates/login.html',
-			controller: 'LoginController'
 		})
 
 		.state('verPedidos', {
@@ -96,19 +122,20 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 		.state('cadastrarProduto', {
 			url: "cadastrarProduto",
 			templateUrl: 'templates/cadastrarProduto.html',
-			controller: 'CadastrarProdutoController'
 		})
 
 		.state('listaFaturamentos', {
 			url: "listaFaturamentos",
 			templateUrl: 'templates/listaFaturamentos.html'
 		})
-
+	//rota padrão, similar a um index.htm num servidor http
 	$urlRouterProvider.otherwise('/login/')
 })
 
 .service("LoginService", function($cordovaSQLite, $q) 
 {
+	//esta variável será responsável por servir o objeto do usuário logado a outros controladores 
+	//e serviços que utilizem dados a respeito do usuário atual
 	this.usuarioLogado = null;
 
 	this.checarUsuario = function(nomeUsuario, senha) 
@@ -189,6 +216,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 //Serviço encarregado de gerenciar pedidos
 .service("PedidoService", function($cordovaSQLite, $q) 
 {
+	//retorna um array com todos os pedidos abertos
 	this.pedidos = function() 
 	{
 		var q = $q.defer();
@@ -204,6 +232,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 		return q.promise;
 	};
 
+	//abre um pedido
 	this.abrirPedido = function(nomeCliente, idMesa, nomeGarcom) 
 	{
 		$cordovaSQLite.execute(db, "INSERT OR IGNORE INTO pedidos (nomeCliente, idMesa, nomeGarcom, horaInicio, status) VALUES (?,?,?,?,?)", 
@@ -251,6 +280,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 		$cordovaSQLite.execute(db, "INSERT INTO item_pedido (idProduto, idPedido) VALUES (?,?)", [idProduto, idPedido]);
 	};
 
+	//retorna itens pedidos pelo id do pedido
 	this.getItensPedido = function(idPedido) 
 	{
 		var q = $q.defer();
@@ -270,6 +300,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 //Serviço encarregado de gerenciar pedidos
 .service("FaturamentoService", function($cordovaSQLite, $q) 
 {
+	//retorna todos as instâncias de pedidos faturados
 	this.pedidosFaturados = function() 
 	{
 		var q = $q.defer();
@@ -283,6 +314,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 		return q.promise;
 	};
 
+	//retorna instância de faturamento pelo id
 	this.getFaturamento = function(faturamentoId) 
 	{
 		var q = $q.defer();
@@ -307,12 +339,10 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 		LoginService.checarUsuario(nomeUsuario, senha).then(function(res) 
 		{
 			LoginService.usuarioLogado = res;
-			console.log(LoginService.usuarioLogado);
 			$state.go('main')
 		}, 
 		function(err) 
 		{
-			console.error(err);
 			$state.go('login', {'retry' : true});
 		})
 	};
@@ -327,19 +357,10 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 
 .controller("AbrirPedidoController", function($scope, $state, LoginService, PedidoService, MesaService) 
 {
-	$scope.mesaValida = false;
-		
-	MesaService.checarMesaLivre($scope.numeroMesa).then(function(res) 
-	{
-		$scope.mesaValida = true;
-	})
-
 	$scope.abrirPedido = function(nomeCliente, idMesa) 
 	{
-		console.log(nomeCliente + " " + idMesa);
 		MesaService.checarMesaLivre(idMesa).then(function(res) 
 		{
-			console.log(res);
 			PedidoService.abrirPedido(nomeCliente, idMesa, LoginService.usuarioLogado.nome);
 			$state.go('main');
 		},
@@ -368,7 +389,9 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 
 .controller("FecharPedidoController", function($scope, $stateParams, FaturamentoService, PedidoService, ItemPedidoService)
 {
+	//parâmetro passa por url que informa que tipo de pedido está sendo exibido, um pedido em aberto ou um pedido já faturado
 	$scope.tipoDeObjeto = $stateParams.tipo;
+	//id do pedido
 	$scope.objetoId = $stateParams.objetoId;
 
 	//caso o item selecionado seja um pedido aberto, busque-o no em PedidoService
@@ -392,6 +415,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 		$scope.pedidoSelecionado.itens = itensPedido;
 	});
 
+	//método que fecha um pedido
 	$scope.fecharPedido = function(idPedido) 
 	{
 		PedidoService.fecharPedido(idPedido);
@@ -415,6 +439,7 @@ angular.module('AppRestaurante', ['ionic', 'ngCordova'])
 
 .controller("AdicionarItemController", function($scope, $stateParams, ProdutoService, ItemPedidoService) 
 {
+	//id do pedido em que o item será adicionado
 	$scope.idPedido = $stateParams.idPedido;
 	ProdutoService.produtos().then(function(res) {$scope.listaDeProdutos = res;});
 	

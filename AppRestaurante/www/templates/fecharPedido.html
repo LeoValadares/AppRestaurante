@@ -47,7 +47,7 @@
 
 		<div class="item">{{ calcularTotal(pedidoSelecionado.itens) | currency: "R$"}}</div>
 
-		<a class="item" ui-sref="main" ng-click="fecharPedido(pedidoSelecionado.id)" style="background-color:#ffcc00;">Fechar Pedido</a>
+		<a class="item" ui-sref="main" ng-if="tipoDeObjeto == 'pedido'"ng-click="fecharPedido(pedidoSelecionado.id)" style="background-color:#ffcc00;">Fechar Pedido</a>
 	</div>
 
 </ion-content>
