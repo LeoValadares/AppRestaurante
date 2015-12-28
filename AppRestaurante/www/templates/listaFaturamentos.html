@@ -17,8 +17,8 @@
     <div class="list">        
         <a class="item" ng-repeat="faturamento in faturamentos | filter: stringBuscaFaturamentos" ui-sref="fecharPedido({tipo: 'faturamento', objetoId: faturamento.id})">
             <h2>Id Faturamento: {{faturamento.id}}</h2>
-            <p>Nome Cliente: {{faturamento.pedido.nomeCliente}}</p>
-            <p>Nome Garcom: {{faturamento.pedido.nomeGarcom}}</p>
+            <p>Nome Cliente: {{faturamento.nomeCliente}}</p>
+            <p>Nome Garcom: {{faturamento.nomeGarcom}}</p>
             <p>Data de Faturamento: {{faturamento.horaFechamento}}</p>
         </a>
     </div>

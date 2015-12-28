@@ -12,10 +12,6 @@
 
 	<div class="list list">
 
-		<div class="item" ng-if="tipoDeObjeto == 'faturamento'">
-			<h2>ID Faturamento</h2> {{faturamentoSelecionado.id}}
-		</div>
-
 		<div class="item">
 			<h2>ID Pedido</h2> {{pedidoSelecionado.id}}
 		</div>
@@ -37,7 +33,7 @@
 		</div>
 
 		<div class="item" ng-if="tipoDeObjeto == 'faturamento'">
-			<h2>Hora Fim</h2> {{faturamentoSelecionado.horaFechamento}}
+			<h2>Hora Fim</h2> {{pedidoSelecionado.horaFechamento}}
 		</div>		
 
 		<div class="item item-divider">Produtos Consumidos</div>
@@ -49,9 +45,9 @@
 
 		<div class="item item-divider">Total</div>
 
-		<div class="item">{{calcularTotal(pedidoSelecionado) | currency: "R$"}}</div>
+		<div class="item">{{ calcularTotal(pedidoSelecionado.itens) | currency: "R$"}}</div>
 
-		<a class="item" ui-sref="main" ng-click="faturarPedido(pedidoSelecionado.id)" style="background-color:#ffcc00;">Fechar Pedido</a>
+		<a class="item" ui-sref="main" ng-click="fecharPedido(pedidoSelecionado.id)" style="background-color:#ffcc00;">Fechar Pedido</a>
 	</div>
 
 </ion-content>

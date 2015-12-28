@@ -16,7 +16,7 @@
 
 <div class="list">           
     <a class="item" ng-repeat="produto in listaDeProdutos | filter: stringBuscarProduto" ng-click="adicionarItem(produto.id, idPedido)">
-    {{produto.nome}}
+    {{produto.id}} | {{produto.nome}}
     </a>
 </div>
 
